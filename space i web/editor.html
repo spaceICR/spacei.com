@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launch Editor</title>
+
+<style>
+body{margin:0;font-family:system-ui;background:#0b1020;color:#eaf0ff}
+header,main{max-width:900px;margin:auto;padding:24px}
+input,select,textarea{
+  width:100%;padding:10px;margin-bottom:10px;
+  border-radius:12px;border:1px solid #22315a;
+  background:#0f1730;color:#fff
+}
+textarea{min-height:90px;resize:vertical}
+button{
+  padding:10px 14px;border:none;border-radius:12px;
+  background:#6aa8ff;font-weight:700;cursor:pointer
+}
+button.secondary{background:transparent;border:1px solid #22315a;color:#eaf0ff}
+button.danger{background:transparent;border:1px solid #ff6b6b;color:#ff6b6b}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.item{
+  border:1px solid #22315a;border-radius:14px;
+  padding:10px;margin-top:8px;
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px
+}
+.item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+img{max-width:120px;margin-bottom:10px;border-radius:12px;border:1px solid #22315a}
+small{color:#9fb0d0;letter-spacing:1px}
+label{display:block;margin:8px 0 6px;color:#9fb0d0}
+.hint{color:#9fb0d0;font-size:12px;margin:-6px 0 10px}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Mission Editor</h1>
+  <p><small>GO SPACE I</small></p>
+</header>
+
+<main>
+
+<div class="actions">
+  <button type="button" id="btnNew" class="secondary">+ Nueva misión</button>
+</div>
+
+<input id="id" placeholder="ID único (S77, IFT-7)">
+<div class="hint">El ID debe ser único. Para otra misión parecida usá S77-2, etc.</div>
+
+<input id="name" placeholder="Nombre de la misión">
+
+<label>Descripción de la misión</label>
+<textarea id="description" placeholder="Objetivo, hitos del vuelo, perfil de misión, notas..."></textarea>
+
+<select id="vehicle">
+  <option>Starship Block 2</option>
+  <option>Starship Block 3</option>
+  <option>Falcon 9</option>
+</select>
+
+<input id="date" placeholder="Fecha (YYYY-MM-DD)">
+
+<label>Status</label>
+<select id="status">
+  <option value="tbd">Programado</option>
+  <option value="success">Éxito</option>
+  <option value="fail">Fallo</option>
+</select>
+
+<input id="pad" placeholder="Pad">
+<input id="payload" placeholder="Payload">
+
+<label>Patch (imagen)</label>
+<input type="file" id="patchFile" accept="image/*">
+<img id="preview" style="display:none" alt="Patch preview">
+
+<div class="actions">
+  <button type="button" id="btnSave">Guardar</button>
+  <button type="button" class="danger" id="btnDelete">Eliminar</button>
+</div>
+
+<div id="list"></div>
+
+</main>
+
+<script>
+(() => {
+  const STORAGE_KEY = "launches_db";
+
+  const el = {
+    id: document.getElementById("id"),
+    name: document.getElementById("name"),
+    description: document.getElementById("description"),
+    vehicle: document.getElementById("vehicle"),
+    date: document.getElementById("date"),
+    status: document.getElementById("status"),
+    pad: document.getElementById("pad"),
+    payload: document.getElementById("payload"),
+    patchFile: document.getElementById("patchFile"),
+    preview: document.getElementById("preview"),
+    list: document.getElementById("list"),
+    btnSave: document.getElementById("btnSave"),
+    btnDelete: document.getElementById("btnDelete"),
+    btnNew: document.getElementById("btnNew"),
+  };
+
+  let launches = safeParse(localStorage.getItem(STORAGE_KEY), []);
+  let selectedId = null;   // si no es null, estamos editando
+  let patch = null;
+
+  // ✅ anti-bug: evita doble click mientras guarda
+  let saving = false;
+
+  el.btnNew.addEventListener("click", clearForm);
+
+  el.patchFile.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      patch = r.result;
+      el.preview.src = patch;
+      el.preview.style.display = "block";
+    };
+    r.readAsDataURL(f);
+  });
+
+  el.btnSave.addEventListener("click", () => {
+    if (saving) return; // ✅ se puede presionar mil veces; solo ignora mientras guarda
+    saving = true;
+    el.btnSave.disabled = true;
+
+    try {
+      const id = el.id.value.trim();
+      const name = el.name.value.trim();
+
+      if (!id || !name) {
+        alert("ID y nombre son obligatorios");
+        return;
+      }
+
+      // ✅ FIX IDs duplicados:
+      // - Si NO estoy editando y el ID ya existe -> bloquear
+      const exists = launches.some(l => l.id === id);
+      if (!selectedId && exists) {
+        alert("Ese ID ya existe. Usá otro ID o editá la misión existente.");
+        return;
+      }
+      // - Si estoy editando y cambié el ID a uno ya existente -> bloquear
+      if (selectedId && id !== selectedId && exists) {
+        alert("No podés cambiar el ID a uno que ya existe.");
+        return;
+      }
+
+      const launch = {
+        id,
+        name,
+        description: el.description.value.trim(),
+        vehicle: el.vehicle.value,
+        date: el.date.value.trim(),
+        result: el.status.value, // tbd/success/fail
+        pad: el.pad.value.trim(),
+        payload: el.payload.value.trim(),
+        patch,
+      };
+
+      // Guardar: si editando, actualiza el registro seleccionado; si no, agrega
+      const idx = selectedId
+        ? launches.findIndex(l => l.id === selectedId)
+        : launches.findIndex(l => l.id === id);
+
+      if (idx >= 0) launches[idx] = launch;
+      else launches.push(launch);
+
+      selectedId = id;
+      persist();
+      renderList();
+    } catch (err) {
+      console.error(err);
+      alert("Ocurrió un error guardando. Revisá la consola (F12).");
+    } finally {
+      // ✅ pase lo que pase, vuelve a habilitarse
+      saving = false;
+      el.btnSave.disabled = false;
+    }
+  });
+
+  el.btnDelete.addEventListener("click", () => {
+    if (!selectedId) {
+      alert("Seleccioná una misión primero");
+      return;
+    }
+    if (!confirm(`¿Eliminar misión ${selectedId}?`)) return;
+
+    launches = launches.filter(l => l.id !== selectedId);
+    selectedId = null;
+    persist();
+    clearForm();
+    renderList();
+  });
+
+  function persist() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(launches));
+  }
+
+  function clearForm() {
+    selectedId = null;
+    el.id.value = "";
+    el.name.value = "";
+    el.description.value = "";
+    el.date.value = "";
+    el.status.value = "tbd";
+    el.pad.value = "";
+    el.payload.value = "";
+    el.vehicle.value = "Starship Block 2";
+    patch = null;
+    el.preview.style.display = "none";
+    el.preview.src = "";
+    el.patchFile.value = "";
+    // si el usuario estaba spameando guardar, esto ayuda a dejarlo listo
+    saving = false;
+    el.btnSave.disabled = false;
+  }
+
+  function fillForm(l) {
+    selectedId = l.id;
+    el.id.value = l.id || "";
+    el.name.value = l.name || "";
+    el.description.value = l.description || "";
+    el.vehicle.value = l.vehicle || "Starship Block 2";
+    el.date.value = l.date || "";
+    el.status.value = normalizeStatus(l.result);
+    el.pad.value = l.pad || "";
+    el.payload.value = l.payload || "";
+    patch = l.patch || null;
+
+    if (patch) {
+      el.preview.src = patch;
+      el.preview.style.display = "block";
+    } else {
+      el.preview.style.display = "none";
+      el.preview.src = "";
+    }
+  }
+
+  function renderList() {
+    el.list.innerHTML = "";
+
+    if (!launches.length) {
+      const p = document.createElement("p");
+      p.textContent = "No hay misiones todavía.";
+      p.style.color = "#9fb0d0";
+      el.list.appendChild(p);
+      return;
+    }
+
+    launches.forEach((l) => {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const left = document.createElement("span");
+      left.textContent = `${l.id} — ${l.name || "(sin nombre)"}`;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "secondary";
+      btn.textContent = "Editar";
+      btn.addEventListener("click", () => fillForm(l));
+
+      row.appendChild(left);
+      row.appendChild(btn);
+      el.list.appendChild(row);
+    });
+  }
+
+  function normalizeStatus(v){
+    const s = String(v || "").toLowerCase().trim();
+    if (s === "success") return "success";
+    if (s === "fail") return "fail";
+    return "tbd";
+  }
+
+  function safeParse(raw, fallback) {
+    try {
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? v : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  renderList();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Space Launches</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0b1020;color:#eaf0ff}
+header,main{max-width:1000px;margin:auto;padding:24px}
+.card{background:#121a33;border:1px solid #22315a;border-radius:16px;padding:20px}
+a{color:#6aa8ff;text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Space Launch Program</h1>
+  <p>Registro oficial de lanzamientos</p>
+</header>
+
+<main>
+  <div id="latest" class="card">Cargando último lanzamiento…</div>
+  <p style="margin-top:20px">
+    <a href="launches.html">Ver historial de lanzamientos →</a>
+  </p>
+</main>
+
+<script>
+fetch("data/launches.json")
+  .then(r=>r.json())
+  .then(data=>{
+    if(!data.length){
+      latest.textContent="Aún no hay lanzamientos registrados.";
+      return;
+    }
+    const l=data.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    latest.innerHTML=`
+      <h2>${l.name}</h2>
+      <p><b>Vehículo:</b> ${l.vehicle}</p>
+      <p><b>Fecha:</b> ${l.date}</p>
+      <p><b>Resultado:</b> ${l.result}</p>
+    `;
+  });
+</script>
+
+</body>
+</html>
