@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Space I — Launches</title>
+
+<style>
+  :root{
+    --bg:#05060a;
+    --stroke:#142757;
+    --text:#eaf0ff;
+    --muted:#9fb0d0;
+
+    --blue:#6aa8ff;
+    --green:#2ee59d;
+    --green2:#10b981;
+    --red:#ff6b6b;
+
+    --shadow: 0 12px 40px rgba(0,0,0,.45);
+    --radius:18px;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(20,60,160,.22), transparent 60%),
+      radial-gradient(900px 500px at 70% 10%, rgba(16,185,129,.14), transparent 55%),
+      var(--bg);
+    color:var(--text);
+  }
+
+  header, main{max-width:1100px;margin:auto;padding:26px 22px}
+  h1{margin:0;font-size:22px;letter-spacing:.2px}
+  .sub{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+  .controls{
+    margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  }
+  .input, .select{
+    background: rgba(8,16,42,.65);
+    border:1px solid var(--stroke);
+    color:var(--text);
+    border-radius:999px;
+    padding:10px 12px;
+    outline:none;
+    transition:.15s ease;
+  }
+  .input{min-width:240px}
+  .input:focus, .select:focus{box-shadow:0 0 0 3px rgba(106,168,255,.18)}
+
+  .grid{
+    margin-top:22px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:16px;
+  }
+
+  .card{
+    background: linear-gradient(180deg, rgba(11,22,56,.92), rgba(10,20,50,.92));
+    border:1px solid rgba(20,39,87,.9);
+    border-radius: var(--radius);
+    overflow:hidden;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+
+  /* ✅ Verde + glow SOLO para éxitos */
+  .card.success{
+    border-color: rgba(46,229,157,.75);
+    box-shadow:
+      0 0 0 1px rgba(46,229,157,.22),
+      0 18px 60px rgba(46,229,157,.18);
+  }
+
+  .card:hover{
+    transform:translateY(-2px);
+    box-shadow:
+      0 10px 40px rgba(0,0,0,.6),
+      0 0 0 1px rgba(106,168,255,.2);
+  }
+  .card.success:hover{
+    box-shadow:
+      0 14px 50px rgba(46,229,157,.28),
+      0 0 0 1px rgba(46,229,157,.55);
+  }
+
+  /* ✅ Thumb como "cover" */
+  .thumb{
+    height:160px;
+    position:relative;
+    background:
+      radial-gradient(600px 180px at 30% 0%, rgba(106,168,255,.16), transparent 60%),
+      radial-gradient(400px 160px at 70% 20%, rgba(46,229,157,.10), transparent 55%),
+      rgba(6,12,28,.6);
+    border-bottom:1px solid rgba(20,39,87,.65);
+    overflow:hidden;
+  }
+
+  /* La imagen cubre TODO el área superior */
+  .thumb img{
+    width:100%;
+    height:100%;
+    object-fit:cover;          /* ✅ cover */
+    object-position:center;
+    display:block;
+    filter: contrast(1.05) saturate(1.05);
+    transform: scale(1.02);    /* micro fill para bordes */
+  }
+
+  /* overlay suave para que el texto combine con fondo negro/azul */
+  .thumb::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
+    pointer-events:none;
+  }
+
+  .thumb .fallback{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(159,176,208,.85);
+    font-size:12px;letter-spacing:.8px;text-transform:uppercase;
+  }
+
+  /* ✅ NEXT badge ahora neutro (azul), no verde */
+  .next-badge{
+    position:absolute;top:10px;left:10px; z-index:2;
+    background:linear-gradient(180deg, rgba(106,168,255,.95), rgba(106,168,255,.70));
+    color:#07122b;font-size:11px;font-weight:900;
+    padding:4px 8px;border-radius:999px;letter-spacing:.6px;
+    box-shadow: 0 10px 22px rgba(106,168,255,.18);
+  }
+
+  /* ✅ Éxito badge pequeño (verde) en esquina */
+  .success-badge{
+    position:absolute;top:10px;right:10px; z-index:2;
+    background:linear-gradient(180deg, var(--green), var(--green2));
+    color:#062019;font-size:11px;font-weight:900;
+    padding:4px 8px;border-radius:999px;letter-spacing:.6px;
+    box-shadow: 0 10px 22px rgba(16,185,129,.18);
+  }
+
+  .content{padding:14px 14px 16px}
+  .title{font-weight:800;font-size:14px;margin:0 0 6px}
+
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .pill{
+    font-size:11px;color:var(--muted);
+    border:1px solid rgba(20,39,87,.9);
+    background: rgba(6,12,28,.35);
+    padding:4px 8px;border-radius:999px;
+  }
+
+  .status{
+    display:inline-block;margin-top:10px;
+    padding:4px 10px;border-radius:999px;
+    font-weight:900;font-size:11px;letter-spacing:.4px;
+  }
+  .status.tbd{color:var(--muted);border:1px solid rgba(106,168,255,.55)}
+  .status.success{color:var(--green);border:1px solid rgba(46,229,157,.8);box-shadow:0 0 12px rgba(46,229,157,.18)}
+  .status.fail{color:var(--red);border:1px solid rgba(255,107,107,.7)}
+
+  .actions{margin-top:12px;display:flex;gap:10px}
+  .btn{
+    padding:9px 11px;border-radius:12px;
+    border:1px solid rgba(20,39,87,.9);
+    background: rgba(6,12,28,.35);
+    color:var(--text);
+    font-weight:800;font-size:12px;
+    cursor:pointer;
+  }
+  .btn.primary{
+    background:linear-gradient(180deg, var(--green), var(--green2));
+    border:none;color:#062019;
+  }
+  .btn:hover{filter:brightness(1.08)}
+
+  .modalBg{
+    position:fixed;inset:0;background:rgba(0,0,0,.62);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  .modal{
+    width:min(860px, 100%);
+    background: linear-gradient(180deg, rgba(10,20,50,.98), rgba(8,16,42,.98));
+    border:1px solid rgba(20,39,87,.9);
+    border-radius:22px;overflow:hidden;
+    box-shadow: 0 22px 70px rgba(0,0,0,.55);
+  }
+  .modalTop{display:grid;grid-template-columns:240px 1fr}
+  .modalThumb{
+    min-height:220px;position:relative;overflow:hidden;
+    background: rgba(6,12,28,.6);
+    border-right:1px solid rgba(20,39,87,.65);
+  }
+  .modalThumb img{
+    width:100%;height:100%;
+    object-fit:cover;object-position:center;
+    display:block;
+  }
+  .modalThumb::after{
+    content:"";position:absolute;inset:0;
+    background: linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.55));
+    pointer-events:none;
+  }
+  .modalBody{padding:16px 18px}
+  .modalBody h2{margin:0 0 8px;font-size:18px}
+  .kv{
+    margin-top:8px;display:grid;
+    grid-template-columns:140px 1fr;
+    gap:6px 12px;color:var(--muted);font-size:13px;
+  }
+  .kv b{color:var(--text)}
+  .desc{margin-top:12px;color:var(--muted);font-size:13px;line-height:1.45;white-space:pre-wrap}
+  .modalFooter{
+    padding:14px 18px 18px;display:flex;justify-content:flex-end;gap:10px;
+    border-top:1px solid rgba(20,39,87,.65);
+  }
+
+  .empty{
+    margin-top:18px;color:var(--muted);
+    padding:18px;border:1px dashed rgba(20,39,87,.9);
+    border-radius:16px;background: rgba(8,16,42,.35);
+  }
+
+  @media (max-width:740px){
+    .modalTop{grid-template-columns:1fr}
+    .modalThumb{border-right:none;border-bottom:1px solid rgba(20,39,87,.65);min-height:220px}
+  }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Space I — Launches</h1>
+  <p class="sub">NEXT arriba. Verde + glow en misiones con Éxito.</p>
+
+  <div class="controls">
+    <input id="q" class="input" placeholder="Buscar (misión, vehículo, sitio)">
+    <select id="veh" class="select">
+      <option value="">Todos los vehículos</option>
+    </select>
+    <select id="st" class="select">
+      <option value="">Todos los estados</option>
+      <option value="tbd">Programado</option>
+      <option value="success">Éxito</option>
+      <option value="fail">Fallo</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">No hay misiones registradas todavía.</div>
+</main>
+
+<div id="modalBg" class="modalBg" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modalTop">
+      <div id="mThumb" class="modalThumb"></div>
+      <div class="modalBody">
+        <h2 id="mTitle"></h2>
+        <div class="kv" id="mKV"></div>
+        <div class="desc" id="mDesc"></div>
+      </div>
+    </div>
+    <div class="modalFooter">
+      <button class="btn" id="mClose" type="button">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "launches_db";
+
+  const el = {
+    grid: document.getElementById("grid"),
+    empty: document.getElementById("empty"),
+    q: document.getElementById("q"),
+    veh: document.getElementById("veh"),
+    st: document.getElementById("st"),
+    modalBg: document.getElementById("modalBg"),
+    mThumb: document.getElementById("mThumb"),
+    mTitle: document.getElementById("mTitle"),
+    mKV: document.getElementById("mKV"),
+    mDesc: document.getElementById("mDesc"),
+    mClose: document.getElementById("mClose"),
+  };
+
+  const launches = safeParse(localStorage.getItem(STORAGE_KEY), []);
+
+  const vehicles = [...new Set(launches.map(l => (l.vehicle || "").trim()).filter(Boolean))].sort();
+  vehicles.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    el.veh.appendChild(opt);
+  });
+
+  el.q.addEventListener("input", render);
+  el.veh.addEventListener("change", render);
+  el.st.addEventListener("change", render);
+
+  el.mClose.addEventListener("click", closeModal);
+  el.modalBg.addEventListener("click", (e) => { if(e.target === el.modalBg) closeModal(); });
+
+  function parseDate(d){
+    const t = Date.parse(d);
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+  }
+
+  function sortNearestFirst(list){
+    const now = Date.now();
+    return list.slice().sort((a,b)=>{
+      const ta = parseDate(a.date);
+      const tb = parseDate(b.date);
+
+      const aFuture = ta >= now;
+      const bFuture = tb >= now;
+      if (aFuture !== bFuture) return aFuture ? -1 : 1;
+
+      const da = Math.abs(ta - now);
+      const db = Math.abs(tb - now);
+      if (da !== db) return da - db;
+
+      return ta - tb;
+    });
+  }
+
+  function normalize(s){ return String(s||"").toLowerCase().trim(); }
+
+  function statusClass(v){
+    const s = normalize(v);
+    if (s === "success") return "success";
+    if (s === "fail") return "fail";
+    return "tbd";
+  }
+  function statusLabel(v){
+    const s = normalize(v);
+    if (s === "success") return "Éxito";
+    if (s === "fail") return "Fallo";
+    return "Programado";
+  }
+
+  function render(){
+    el.grid.innerHTML = "";
+
+    if(!launches.length){
+      el.empty.style.display = "block";
+      el.empty.textContent = "No hay misiones registradas todavía.";
+      return;
+    }
+    el.empty.style.display = "none";
+
+    const q = normalize(el.q.value);
+    const veh = el.veh.value;
+    const st = el.st.value;
+
+    const filtered = launches.filter(l => {
+      const sClass = statusClass(l.result);
+      const text = `${l.name} ${l.vehicle} ${l.pad} ${l.payload}`.toLowerCase();
+      return (!veh || l.vehicle === veh) &&
+             (!st || sClass === st) &&
+             (!q || text.includes(q));
+    });
+
+    const ordered = sortNearestFirst(filtered);
+
+    if(!ordered.length){
+      el.empty.style.display = "block";
+      el.empty.textContent = "No hay resultados con esos filtros.";
+      return;
+    } else {
+      el.empty.textContent = "No hay misiones registradas todavía.";
+    }
+
+    ordered.forEach((l, idx) => {
+      const sClass = statusClass(l.result);
+
+      const card = document.createElement("div");
+      card.className = "card" + (sClass === "success" ? " success" : ""); // ✅ glow en éxitos
+
+      const dateText = (l.date && l.date.trim()) ? l.date.trim() : "Sin fecha";
+
+      card.innerHTML = `
+        <div class="thumb">
+          ${idx === 0 ? `<div class="next-badge">NEXT</div>` : ``}
+          ${sClass === "success" ? `<div class="success-badge">SUCCESS</div>` : ``}
+
+          ${
+            l.patch
+              ? `<img src="${l.patch}" alt="Patch">`
+              : `<div class="fallback">Patch</div>`
+          }
+        </div>
+        <div class="content">
+          <div class="title">${escapeHtml(l.name || "(sin nombre)")}</div>
+
+          <div class="meta">
+            <span class="pill">${escapeHtml(dateText)}</span>
+            <span class="pill">${escapeHtml(l.vehicle || "Vehículo")}</span>
+            <span class="pill">${escapeHtml(l.pad || "Pad")}</span>
+          </div>
+
+          <div class="status ${sClass}">${escapeHtml(statusLabel(l.result))}</div>
+
+          <div class="actions">
+            <button class="btn primary" type="button">Ver info</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelector(".btn.primary").addEventListener("click", () => openModal(l));
+      el.grid.appendChild(card);
+    });
+  }
+
+  function openModal(l){
+    el.mThumb.innerHTML = l.patch
+      ? `<img src="${l.patch}" alt="Patch">`
+      : `<div class="fallback">Patch</div>`;
+
+    el.mTitle.textContent = l.name || "(sin nombre)";
+
+    el.mKV.innerHTML = `
+      <span>Fecha</span><b>${escapeHtml((l.date||"Sin fecha"))}</b>
+      <span>Vehículo</span><b>${escapeHtml((l.vehicle||"-"))}</b>
+      <span>Pad</span><b>${escapeHtml((l.pad||"-"))}</b>
+      <span>Payload</span><b>${escapeHtml((l.payload||"-"))}</b>
+      <span>Status</span><b>${escapeHtml(statusLabel(l.result))}</b>
+    `;
+
+    el.mDesc.textContent = (l.description || "").trim() || "—";
+    el.modalBg.style.display = "flex";
+  }
+
+  function closeModal(){ el.modalBg.style.display = "none"; }
+
+  function safeParse(raw, fallback){
+    try{
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? v : fallback;
+    }catch{
+      return fallback;
+    }
+  }
+
+  function escapeHtml(str){
+    return String(str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
